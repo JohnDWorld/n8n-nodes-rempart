@@ -37,7 +37,7 @@
     "n8nNodesApiVersion": 1,
     "strict": true,
     "credentials": ["dist/credentials/RempartApi.credentials.js"],
-    "nodes": ["dist/nodes/Rempart/Rempart.node.js"]
+    "nodes": ["dist/nodes/Rempart/Rempart.node.js", "dist/nodes/RempartTrigger/RempartTrigger.node.js"]
   },
   "devDependencies": {
     "@n8n/node-cli": "*",

@@ -74,3 +74,18 @@ export function errorMessage(status: number | undefined, detail: string): string
 	if (status !== undefined) return `Rempart gateway error (HTTP ${status}): ${detail}`;
 	return detail || 'Rempart gateway error';
 }
+
+/** Offset for the next getUpdates: last update_id plus one. The gateway drops everything below. */
+export function nextOffset(updates: IDataObject[], current: number): number {
+	return updates.reduce((max, update) => Math.max(max, Number(update.update_id) + 1), current);
+}
+
+/** Keeps the kinds of updates the user asked for: messages, reactions, or both. */
+export function filterUpdates(updates: IDataObject[], wanted: string[]): IDataObject[] {
+	return updates.filter((update) => wanted.includes(update.reaction ? 'reaction' : 'message'));
+}
+
+/** Delay before polling again after a failure: 1 s, doubling, at most 30 s. */
+export function retryDelay(attempt: number): number {
+	return Math.min(30_000, 1_000 * 2 ** attempt);
+}
