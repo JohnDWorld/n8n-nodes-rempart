@@ -1,6 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildButtons, buildMessageBody, detailOf, errorMessage, statusOf } from '../nodes/Rempart/helpers.ts';
+import {
+	buildButtons,
+	buildMessageBody,
+	detailOf,
+	errorMessage,
+	resumeOutput,
+	statusOf,
+	waitSeconds,
+} from '../nodes/Rempart/helpers.ts';
 
 test('status is read from the raw error and from a NodeApiError', () => {
 	assert.equal(statusOf({ response: { status: 401 } }), 401);
@@ -37,4 +45,40 @@ test('message body only carries what was set', () => {
 		buildMessageBody('!r', 'hi', { parseMode: 'markdown', replyTo: '$m', buttons: [{ texte: 'A', valeur: 'a' }] }),
 		{ room_id: '!r', text: 'hi', parse_mode: 'markdown', reply_to_message_id: '$m', buttons: [{ texte: 'A', valeur: 'a' }] },
 	);
+});
+
+test('wait limit in seconds', () => {
+	assert.equal(waitSeconds(2, 'minutes'), 120);
+	assert.equal(waitSeconds(1, 'hours'), 3600);
+	assert.equal(waitSeconds(1, 'days'), 86400);
+});
+
+test('resume output per response type', () => {
+	const answer = {
+		question_id: '$q',
+		message_id: '$m',
+		sender: '@u_x:rempart-messenger.fr',
+		sender_name: 'Bérénice',
+		value: '✅ Approve',
+		label: '✅ Approve',
+		text: '✅ Approve',
+	};
+	assert.deepEqual(resumeOutput('approval', answer, '✅ Approve'), {
+		question_id: '$q',
+		message_id: '$m',
+		sender: '@u_x:rempart-messenger.fr',
+		sender_name: 'Bérénice',
+		value: '✅ Approve',
+		label: '✅ Approve',
+		approved: true,
+	});
+	assert.equal(resumeOutput('approval', { ...answer, value: '❌ Decline' }, '✅ Approve').approved, false);
+	assert.equal(resumeOutput('choices', answer, '').approved, undefined);
+	assert.deepEqual(resumeOutput('freeText', { ...answer, text: 'Thursday' }, ''), {
+		question_id: '$q',
+		message_id: '$m',
+		sender: '@u_x:rempart-messenger.fr',
+		sender_name: 'Bérénice',
+		text: 'Thursday',
+	});
 });

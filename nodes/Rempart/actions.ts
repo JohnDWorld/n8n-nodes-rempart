@@ -1,7 +1,7 @@
 import type { IBinaryKeyData, IDataObject, IExecuteFunctions, INodeExecutionData } from 'n8n-workflow';
-import { NodeOperationError } from 'n8n-workflow';
+import { NodeOperationError, WAIT_INDEFINITELY } from 'n8n-workflow';
 import { downloadFile, rempartRequest } from './GenericFunctions';
-import { buildButtons, buildMessageBody } from './helpers';
+import { buildButtons, buildMessageBody, waitSeconds, type RempartButton } from './helpers';
 
 /** Runs one operation for one input item. */
 export async function runOperation(
@@ -73,4 +73,51 @@ export async function runOperation(
 		return [{ json: { mxc, fileName }, binary, pairedItem: i }];
 	}
 	throw new NodeOperationError(this.getNode(), `Unsupported operation: ${resource}.${operation}`, { itemIndex: i });
+}
+
+function waitButtons(this: IExecuteFunctions, responseType: string): RempartButton[] {
+	if (responseType === 'approval') {
+		return buildButtons([
+			{ label: this.getNodeParameter('approveLabel', 0) as string },
+			{ label: this.getNodeParameter('declineLabel', 0) as string },
+		]);
+	}
+	if (responseType === 'choices') {
+		return buildButtons(this.getNodeParameter('choices.choice', 0, []) as Array<{ label?: string; value?: string }>);
+	}
+	return [];
+}
+
+/**
+ * Sends the question, then pauses the execution. The gateway calls the signed resume
+ * URL with the answer (see Rempart.webhook). Only the first input item is used, like
+ * the official "Send and Wait" operations.
+ */
+export async function sendAndWait(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
+	const responseType = this.getNodeParameter('responseType', 0) as string;
+	const buttons = waitButtons.call(this, responseType);
+	if (responseType !== 'freeText' && !buttons.length) {
+		throw new NodeOperationError(this.getNode(), 'Add at least one choice');
+	}
+	const body = buildMessageBody(
+		this.getNodeParameter('roomId', 0) as string,
+		this.getNodeParameter('text', 0) as string,
+		{ buttons },
+	);
+	body.reply_webhook = this.getSignedResumeUrl();
+	body.reply_mode = responseType === 'freeText' ? 'text' : 'buttons';
+	let waitTill = WAIT_INDEFINITELY;
+	if (this.getNodeParameter('limitWaitTime', 0, false)) {
+		const seconds = waitSeconds(
+			this.getNodeParameter('resumeAmount', 0, 1) as number,
+			this.getNodeParameter('resumeUnit', 0, 'hours') as string,
+		);
+		waitTill = new Date(Date.now() + seconds * 1000);
+		body.reply_expires_at = Math.floor(waitTill.getTime() / 1000);
+	}
+	await rempartRequest.call(this, 'POST', '/v1/sendMessage', body);
+	await this.putExecutionToWait(waitTill);
+	// Output if the wait limit is reached without an answer; an answer replaces it
+	// with what Rempart.webhook returns.
+	return [[{ json: { timedOut: true } }]];
 }

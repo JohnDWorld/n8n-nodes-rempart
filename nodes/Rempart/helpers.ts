@@ -37,6 +37,32 @@ export function buildMessageBody(
 	return body;
 }
 
+const UNIT_SECONDS: Record<string, number> = { minutes: 60, hours: 3600, days: 86400 };
+
+/** Wait limit of "Send and Wait for Response", in seconds. */
+export function waitSeconds(amount: number, unit: string): number {
+	return amount * (UNIT_SECONDS[unit] ?? 3600);
+}
+
+/**
+ * What "Send and Wait for Response" outputs once the gateway posts the answer. The
+ * gateway's resume body is { question_id, room_id, message_id, sender, sender_name,
+ * value, label, text }; sender (the Matrix ID of whoever answered) is kept in every
+ * shape, since in a group any member can answer and a workflow may need to check who.
+ */
+export function resumeOutput(responseType: string, answer: IDataObject, approveValue: string): IDataObject {
+	const base: IDataObject = {
+		question_id: answer.question_id,
+		message_id: answer.message_id,
+		sender: answer.sender,
+		sender_name: answer.sender_name,
+	};
+	if (responseType === 'freeText') return { ...base, text: answer.text };
+	const output: IDataObject = { ...base, value: answer.value, label: answer.label };
+	if (responseType === 'approval') output.approved = answer.value === approveValue;
+	return output;
+}
+
 /** HTTP status of a failed call, whether n8n already wrapped the error or not. */
 export function statusOf(error: unknown): number | undefined {
 	const e = error as {

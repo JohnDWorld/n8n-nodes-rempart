@@ -1,13 +1,17 @@
 import type {
+	IDataObject,
 	IExecuteFunctions,
 	INodeExecutionData,
 	INodeType,
 	INodeTypeDescription,
+	IWebhookFunctions,
+	IWebhookResponseData,
 	JsonObject,
 } from 'n8n-workflow';
 import { NodeApiError, NodeConnectionTypes } from 'n8n-workflow';
-import { runOperation } from './actions';
+import { runOperation, sendAndWait } from './actions';
 import { properties } from './descriptions';
+import { resumeOutput } from './helpers';
 
 export class Rempart implements INodeType {
 	description: INodeTypeDescription = {
@@ -23,12 +27,24 @@ export class Rempart implements INodeType {
 		outputs: [NodeConnectionTypes.Main],
 		usableAsTool: true,
 		credentials: [{ name: 'rempartApi', required: true }],
+		webhooks: [
+			{
+				name: 'default',
+				httpMethod: 'POST',
+				responseMode: 'onReceived',
+				responseData: '',
+				path: '={{ $nodeId }}',
+				restartWebhook: true,
+				isFullPath: true,
+			},
+		],
 		properties,
 	};
 
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
 		const resource = this.getNodeParameter('resource', 0) as string;
 		const operation = this.getNodeParameter('operation', 0) as string;
+		if (resource === 'message' && operation === 'sendAndWait') return await sendAndWait.call(this);
 		const results: INodeExecutionData[] = [];
 		for (let i = 0; i < this.getInputData().length; i++) {
 			try {
@@ -44,5 +60,12 @@ export class Rempart implements INodeType {
 			}
 		}
 		return [results];
+	}
+
+	async webhook(this: IWebhookFunctions): Promise<IWebhookResponseData> {
+		const responseType = this.getNodeParameter('responseType', 'approval') as string;
+		const approveValue = ((this.getNodeParameter('approveLabel', '✅ Approve') as string) ?? '').trim();
+		const answer = this.getBodyData() as IDataObject;
+		return { workflowData: [[{ json: resumeOutput(responseType, answer, approveValue) }]] };
 	}
 }

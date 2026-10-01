@@ -41,6 +41,12 @@ export const messageOperations: INodeProperties = {
 		{ name: 'Delete', value: 'delete', action: 'Delete a message', description: 'Delete a message sent by the bot' },
 		{ name: 'Edit Text', value: 'editText', action: 'Edit a message', description: 'Replace the text of a message sent by the bot' },
 		{ name: 'Send', value: 'send', action: 'Send a message', description: 'Send a text message, with optional buttons' },
+		{
+			name: 'Send and Wait for Response',
+			value: 'sendAndWait',
+			action: 'Send a message and wait for response',
+			description: 'Ask a question and pause the workflow until someone answers in the conversation',
+		},
 		{ name: 'Send Document', value: 'sendDocument', action: 'Send a document', description: 'Send any file from binary data or a URL' },
 		{ name: 'Send Photo', value: 'sendPhoto', action: 'Send a photo', description: 'Send an image from binary data or a URL' },
 	],
@@ -153,7 +159,7 @@ export const textProperty: INodeProperties = {
 	required: true,
 	typeOptions: { rows: 4 },
 	default: '',
-	displayOptions: { show: { resource: ['message'], operation: ['send', 'editText'] } },
+	displayOptions: { show: { resource: ['message'], operation: ['send', 'editText', 'sendAndWait'] } },
 };
 
 export const messageIdProperty: INodeProperties = {
@@ -218,6 +224,83 @@ export const sendOptions: INodeProperties = {
 	],
 };
 
+const waitShow = { show: { resource: ['message'], operation: ['sendAndWait'] } };
+
+export const waitProperties: INodeProperties[] = [
+	{
+		displayName: 'Response Type',
+		name: 'responseType',
+		type: 'options',
+		options: [
+			{ name: 'Approval', value: 'approval', description: 'Two buttons: approve or decline' },
+			{ name: 'Choices', value: 'choices', description: 'Up to 8 buttons of your own' },
+			{ name: 'Free Text', value: 'freeText', description: 'The next message (in a group, a reply quoting the question)' },
+		],
+		default: 'approval',
+		displayOptions: waitShow,
+	},
+	{
+		displayName: 'Approve Label',
+		name: 'approveLabel',
+		type: 'string',
+		default: '✅ Approve',
+		displayOptions: { show: { resource: ['message'], operation: ['sendAndWait'], responseType: ['approval'] } },
+	},
+	{
+		displayName: 'Decline Label',
+		name: 'declineLabel',
+		type: 'string',
+		default: '❌ Decline',
+		displayOptions: { show: { resource: ['message'], operation: ['sendAndWait'], responseType: ['approval'] } },
+	},
+	{
+		displayName: 'Choices',
+		name: 'choices',
+		type: 'fixedCollection',
+		typeOptions: { multipleValues: true },
+		default: {},
+		displayOptions: { show: { resource: ['message'], operation: ['sendAndWait'], responseType: ['choices'] } },
+		options: [
+			{
+				displayName: 'Choice',
+				name: 'choice',
+				values: [
+					{ displayName: 'Label', name: 'label', type: 'string', default: '' },
+					{ displayName: 'Value', name: 'value', type: 'string', default: '', description: 'Output as "value". Defaults to the label.' },
+				],
+			},
+		],
+	},
+	{
+		displayName: 'Limit Wait Time',
+		name: 'limitWaitTime',
+		type: 'boolean',
+		default: false,
+		description: 'Whether to resume the workflow without an answer after a while. It then outputs timedOut: true.',
+		displayOptions: waitShow,
+	},
+	{
+		displayName: 'Amount',
+		name: 'resumeAmount',
+		type: 'number',
+		typeOptions: { minValue: 1 },
+		default: 1,
+		displayOptions: { show: { resource: ['message'], operation: ['sendAndWait'], limitWaitTime: [true] } },
+	},
+	{
+		displayName: 'Unit',
+		name: 'resumeUnit',
+		type: 'options',
+		options: [
+			{ name: 'Minutes', value: 'minutes' },
+			{ name: 'Hours', value: 'hours' },
+			{ name: 'Days', value: 'days' },
+		],
+		default: 'hours',
+		displayOptions: { show: { resource: ['message'], operation: ['sendAndWait'], limitWaitTime: [true] } },
+	},
+];
+
 export const properties: INodeProperties[] = [
 	resourceProperty,
 	messageOperations,
@@ -229,4 +312,5 @@ export const properties: INodeProperties[] = [
 	messageIdProperty,
 	sendOptions,
 	...fileProperties,
+	...waitProperties,
 ];
