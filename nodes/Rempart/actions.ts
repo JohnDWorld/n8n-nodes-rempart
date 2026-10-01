@@ -1,4 +1,4 @@
-import type { IDataObject, IExecuteFunctions, INodeExecutionData } from 'n8n-workflow';
+import type { IBinaryKeyData, IDataObject, IExecuteFunctions, INodeExecutionData } from 'n8n-workflow';
 import { NodeOperationError } from 'n8n-workflow';
 import { rempartRequest } from './GenericFunctions';
 import { buildButtons, buildMessageBody } from './helpers';
@@ -46,6 +46,44 @@ export async function runOperation(
 			room_id: this.getNodeParameter('roomId', i),
 			message_id: this.getNodeParameter('messageId', i),
 		});
+	}
+	if (resource === 'message' && (operation === 'sendPhoto' || operation === 'sendDocument')) {
+		const body: IDataObject = { room_id: this.getNodeParameter('roomId', i) };
+		const caption = this.getNodeParameter('caption', i, '') as string;
+		if (caption) body.caption = caption;
+		const replyTo = this.getNodeParameter('replyToMessageId', i, '') as string;
+		if (replyTo) body.reply_to_message_id = replyTo;
+		if (this.getNodeParameter('source', i) === 'url') {
+			body.url = this.getNodeParameter('fileUrl', i);
+		} else {
+			const field = this.getNodeParameter('binaryPropertyName', i) as string;
+			const binary = this.helpers.assertBinaryData(i, field);
+			const buffer = await this.helpers.getBinaryDataBuffer(i, field);
+			body.data_base64 = buffer.toString('base64');
+			body.content_type = binary.mimeType;
+			if (binary.fileName) body.filename = binary.fileName;
+		}
+		return await call(operation === 'sendPhoto' ? '/v1/sendPhoto' : '/v1/sendDocument', body);
+	}
+	if (resource === 'file' && operation === 'download') {
+		const mxc = this.getNodeParameter('mxc', i) as string;
+		const fileName = (this.getNodeParameter('fileName', i, '') as string) || 'file';
+		const field = this.getNodeParameter('binaryPropertyName', i) as string;
+		const response = (await rempartRequest.call(
+			this,
+			'GET',
+			`/v1/getFile?mxc=${encodeURIComponent(mxc)}`,
+			undefined,
+			{ encoding: 'arraybuffer', json: false, returnFullResponse: true },
+		)) as { body: ArrayBuffer; headers: IDataObject };
+		const binary: IBinaryKeyData = {
+			[field]: await this.helpers.prepareBinaryData(
+				Buffer.from(response.body),
+				fileName,
+				String(response.headers['content-type'] ?? ''),
+			),
+		};
+		return [{ json: { mxc, fileName }, binary, pairedItem: i }];
 	}
 	throw new NodeOperationError(this.getNode(), `Unsupported operation: ${resource}.${operation}`, { itemIndex: i });
 }

@@ -9,6 +9,7 @@ export const resourceProperty: INodeProperties = {
 		{ name: 'Message', value: 'message' },
 		{ name: 'Chat', value: 'chat' },
 		{ name: 'Bot', value: 'bot' },
+		{ name: 'File', value: 'file' },
 	],
 	default: 'message',
 };
@@ -37,9 +38,11 @@ export const messageOperations: INodeProperties = {
 	noDataExpression: true,
 	displayOptions: { show: { resource: ['message'] } },
 	options: [
-		{ name: 'Send', value: 'send', action: 'Send a message', description: 'Send a text message, with optional buttons' },
-		{ name: 'Edit Text', value: 'editText', action: 'Edit a message', description: 'Replace the text of a message sent by the bot' },
 		{ name: 'Delete', value: 'delete', action: 'Delete a message', description: 'Delete a message sent by the bot' },
+		{ name: 'Edit Text', value: 'editText', action: 'Edit a message', description: 'Replace the text of a message sent by the bot' },
+		{ name: 'Send', value: 'send', action: 'Send a message', description: 'Send a text message, with optional buttons' },
+		{ name: 'Send Document', value: 'sendDocument', action: 'Send a document', description: 'Send any file from binary data or a URL' },
+		{ name: 'Send Photo', value: 'sendPhoto', action: 'Send a photo', description: 'Send an image from binary data or a URL' },
 	],
 	default: 'send',
 };
@@ -55,6 +58,83 @@ export const chatOperations: INodeProperties = {
 	],
 	default: 'sendTyping',
 };
+
+export const fileOperations: INodeProperties = {
+	displayName: 'Operation',
+	name: 'operation',
+	type: 'options',
+	noDataExpression: true,
+	displayOptions: { show: { resource: ['file'] } },
+	options: [
+		{ name: 'Download', value: 'download', action: 'Download a file', description: 'Download a file received by the bot as binary data' },
+	],
+	default: 'download',
+};
+
+const sendFileShow = { show: { resource: ['message'], operation: ['sendPhoto', 'sendDocument'] } };
+
+export const fileProperties: INodeProperties[] = [
+	{
+		displayName: 'Source',
+		name: 'source',
+		type: 'options',
+		options: [
+			{ name: 'Binary Data', value: 'binary' },
+			{ name: 'URL', value: 'url' },
+		],
+		default: 'binary',
+		displayOptions: sendFileShow,
+	},
+	{
+		displayName: 'Input Binary Field',
+		name: 'binaryPropertyName',
+		type: 'string',
+		default: 'data',
+		required: true,
+		displayOptions: { show: { resource: ['message'], operation: ['sendPhoto', 'sendDocument'], source: ['binary'] } },
+	},
+	{
+		displayName: 'File URL',
+		name: 'fileUrl',
+		type: 'string',
+		default: '',
+		required: true,
+		displayOptions: { show: { resource: ['message'], operation: ['sendPhoto', 'sendDocument'], source: ['url'] } },
+		description: 'Public address of the file. The gateway downloads it.',
+	},
+	{ displayName: 'Caption', name: 'caption', type: 'string', default: '', displayOptions: sendFileShow },
+	{
+		displayName: 'Reply To Message ID',
+		name: 'replyToMessageId',
+		type: 'string',
+		default: '',
+		displayOptions: sendFileShow,
+	},
+	{
+		displayName: 'File Reference',
+		name: 'mxc',
+		type: 'string',
+		required: true,
+		default: '={{ $json.media.mxc }}',
+		displayOptions: { show: { resource: ['file'] } },
+		description: 'Address (mxc://) of the file, given by the Rempart Trigger as media.mxc',
+	},
+	{
+		displayName: 'File Name',
+		name: 'fileName',
+		type: 'string',
+		default: '={{ $json.media.nom }}',
+		displayOptions: { show: { resource: ['file'] } },
+	},
+	{
+		displayName: 'Put Output File in Field',
+		name: 'binaryPropertyName',
+		type: 'string',
+		default: 'data',
+		required: true,
+		displayOptions: { show: { resource: ['file'] } },
+	},
+];
 
 export const roomIdProperty: INodeProperties = {
 	displayName: 'Room ID',
@@ -142,9 +222,11 @@ export const properties: INodeProperties[] = [
 	resourceProperty,
 	messageOperations,
 	chatOperations,
+	fileOperations,
 	botOperations,
 	roomIdProperty,
 	textProperty,
 	messageIdProperty,
 	sendOptions,
+	...fileProperties,
 ];
