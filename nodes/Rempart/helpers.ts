@@ -1,4 +1,41 @@
+import type { IDataObject } from 'n8n-workflow';
+
 export const DEFAULT_GATEWAY_URL = 'https://gateway.rempart-messenger.fr';
+
+export const MAX_BUTTONS = 8;
+
+export interface RempartButton {
+	texte: string;
+	valeur: string;
+}
+
+/**
+ * Buttons under a message, in the gateway's format: the label is shown, the value is
+ * what a tap sends. Without a value, the label is sent. At most 8, a phone screen
+ * overflows beyond.
+ */
+export function buildButtons(rows: Array<{ label?: string; value?: string }>): RempartButton[] {
+	return rows
+		.map((row) => {
+			const texte = (row.label ?? '').trim();
+			return { texte, valeur: (row.value ?? '').trim() || texte };
+		})
+		.filter((button) => button.texte !== '')
+		.slice(0, MAX_BUTTONS);
+}
+
+/** Body of POST /v1/sendMessage, with only the fields that were set. */
+export function buildMessageBody(
+	roomId: string,
+	text: string,
+	options: { parseMode?: string; replyTo?: string; buttons?: RempartButton[] } = {},
+): IDataObject {
+	const body: IDataObject = { room_id: roomId, text };
+	if (options.parseMode) body.parse_mode = options.parseMode;
+	if (options.replyTo) body.reply_to_message_id = options.replyTo;
+	if (options.buttons?.length) body.buttons = options.buttons as unknown as IDataObject[];
+	return body;
+}
 
 /** HTTP status of a failed call, whether n8n already wrapped the error or not. */
 export function statusOf(error: unknown): number | undefined {
