@@ -10,7 +10,7 @@ import type {
 } from 'n8n-workflow';
 import { NodeApiError, NodeConnectionTypes } from 'n8n-workflow';
 import { runOperation, sendAndWait } from './actions';
-import { properties } from './descriptions';
+import { properties, sendAndWaitWebhooks } from './descriptions';
 import { resumeOutput } from './helpers';
 
 export class Rempart implements INodeType {
@@ -27,17 +27,7 @@ export class Rempart implements INodeType {
 		outputs: [NodeConnectionTypes.Main],
 		usableAsTool: true,
 		credentials: [{ name: 'rempartApi', required: true }],
-		webhooks: [
-			{
-				name: 'default',
-				httpMethod: 'POST',
-				responseMode: 'onReceived',
-				responseData: '',
-				path: '={{ $nodeId }}',
-				restartWebhook: true,
-				isFullPath: true,
-			},
-		],
+		webhooks: sendAndWaitWebhooks,
 		properties,
 	};
 

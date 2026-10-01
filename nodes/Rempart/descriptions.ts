@@ -1,4 +1,19 @@
-import type { INodeProperties } from 'n8n-workflow';
+import type { INodeProperties, IWebhookDescription } from 'n8n-workflow';
+
+// Not a trigger: nothing is registered on a remote service. The gateway POSTs the
+// answer to the signed resume URL sent with each question (same shape as n8n's own
+// Send and Wait nodes).
+export const sendAndWaitWebhooks: IWebhookDescription[] = [
+	{
+		name: 'default',
+		httpMethod: 'POST',
+		responseMode: 'onReceived',
+		responseData: '',
+		path: '={{ $nodeId }}',
+		restartWebhook: true,
+		isFullPath: true,
+	},
+];
 
 export const resourceProperty: INodeProperties = {
 	displayName: 'Resource',
