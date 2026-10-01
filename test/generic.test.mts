@@ -6,7 +6,7 @@ import {
 	buildMessageBody,
 	detailOf,
 	errorMessage,
-	gatewayError,
+	gatewayFailure,
 	resumeOutput,
 	statusOf,
 	waitSeconds,
@@ -16,30 +16,38 @@ import {
 const { NodeApiError } = createRequire(import.meta.url)('n8n-workflow');
 const node = { id: '1', name: 'Rempart', type: 'n8n-nodes-rempart.rempart', typeVersion: 1, position: [0, 0], parameters: {} };
 
-// n8n-core's httpRequestWithAuthentication throws new NodeApiError(node, axiosError),
-// then rempartRequest rethrows what gatewayError gives.
-function rethrown(axiosError: unknown) {
-	const { cause, message, httpCode } = gatewayError(new NodeApiError(node, axiosError));
-	return new NodeApiError(node, cause, { message, httpCode });
+// rempartRequest reads the gateway's answer itself (ignoreHttpStatusErrors) and throws
+// new NodeApiError(node, failure, { ...failure }) for anything outside 2xx.
+function thrown(status: number, body: unknown) {
+	const failure = gatewayFailure(status, body);
+	assert.ok(failure);
+	return new NodeApiError(node, failure, { ...failure });
 }
 
-test('the gateway message survives n8n wrapping the axios error first', () => {
-	const axiosError = Object.assign(new Error('Request failed with status code 400'), {
-		response: {
-			status: 400,
-			// gateway.py: HTTPBadRequest(text=f'reply_webhook refusé ({e.text}) : {N8N_INJOIGNABLE}')
-			data: "reply_webhook refusé (adresse non publique) : votre n8n doit être joignable depuis Internet pour recevoir la réponse : réglez WEBHOOK_URL sur son adresse publique",
-		},
-	});
-	const error = rethrown(axiosError);
+test('a 2xx answer is not a failure', () => {
+	assert.equal(gatewayFailure(200, { ok: true }), undefined);
+});
+
+test('the gateway text reaches the user, whatever the n8n version', () => {
+	// gateway.py: HTTPBadRequest(text=f'reply_webhook refusé ({e.text}) : {N8N_INJOIGNABLE}')
+	const error = thrown(
+		400,
+		"reply_webhook refusé (adresse non publique) : votre n8n doit être joignable depuis Internet pour recevoir la réponse : réglez WEBHOOK_URL sur son adresse publique",
+	);
 	assert.match(error.message, /reachable from the internet/);
 	assert.equal(error.httpCode, '400');
+	assert.match(error.description, /WEBHOOK_URL/);
 });
 
 test('a 409 is still told apart, and still stops the trigger', () => {
-	const error = rethrown({ message: 'Request failed with status code 409', response: { status: 409, data: 'webhook actif' } });
+	const error = thrown(409, 'webhook actif');
 	assert.match(error.message, /A webhook is set for this bot/);
 	assert.equal(statusOf(error), 409);
+});
+
+test('an unmapped status keeps the gateway text, a Buffer body is decoded', () => {
+	assert.match(thrown(404, Buffer.from('fichier introuvable')).message, /HTTP 404\): fichier introuvable/);
+	assert.match(thrown(502, '').message, /HTTP 502\): HTTP 502/);
 });
 
 test('status is read from the raw error and from a NodeApiError', () => {

@@ -110,17 +110,16 @@ export function errorMessage(status: number | undefined, detail: string): string
 }
 
 /**
- * What rempartRequest rethrows as a NodeApiError: cause, message and HTTP code.
- * httpRequestWithAuthentication already throws NodeApiError(node, axiosError), and
- * wrapping a NodeApiError again hands back the original with the new message ignored:
- * so the axios error is unwrapped first (`cause` when it is an Error, `errorResponse`
- * otherwise), and the gateway's text read from its response.
+ * What rempartRequest throws for a gateway answer outside 2xx: the message the user reads,
+ * the HTTP code (the trigger stops on 401 and 409) and the gateway's own text.
  */
-export function gatewayError(error: unknown): { cause: unknown; message: string; httpCode?: string } {
-	const e = error as { cause?: unknown; errorResponse?: unknown };
-	const cause = e?.cause ?? e?.errorResponse ?? error;
-	const status = statusOf(cause) ?? statusOf(error);
-	return { cause, message: errorMessage(status, detailOf(cause)), httpCode: status ? String(status) : undefined };
+export function gatewayFailure(
+	status: number,
+	body: unknown,
+): { message: string; httpCode: string; description: string } | undefined {
+	if (status >= 200 && status < 300) return undefined;
+	const detail = detailOf({ response: { data: body } }) || `HTTP ${status}`;
+	return { message: errorMessage(status, detail), httpCode: String(status), description: detail };
 }
 
 /** Offset for the next getUpdates: last update_id plus one. The gateway drops everything below. */
