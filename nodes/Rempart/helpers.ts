@@ -47,19 +47,23 @@ export function waitSeconds(amount: number, unit: string): number {
 /**
  * What "Send and Wait for Response" outputs once the gateway posts the answer. The
  * gateway's resume body is { question_id, room_id, message_id, sender, sender_name,
- * value, label, text }; sender (the Matrix ID of whoever answered) is kept in every
- * shape, since in a group any member can answer and a workflow may need to check who.
+ * value, label, text }. room_id is kept so a following Rempart Message operation (its
+ * Room ID defaults to {{ $json.room_id }}) answers in the same room, and sender (the
+ * Matrix ID of whoever answered) is kept in every shape, since in a group any member
+ * can answer and a workflow may need to check who. Approval buttons always carry the
+ * fixed values "approve"/"decline" (see waitButtons in actions.ts), never the labels.
  */
-export function resumeOutput(responseType: string, answer: IDataObject, approveValue: string): IDataObject {
+export function resumeOutput(responseType: string, answer: IDataObject): IDataObject {
 	const base: IDataObject = {
 		question_id: answer.question_id,
+		room_id: answer.room_id,
 		message_id: answer.message_id,
 		sender: answer.sender,
 		sender_name: answer.sender_name,
 	};
 	if (responseType === 'freeText') return { ...base, text: answer.text };
 	const output: IDataObject = { ...base, value: answer.value, label: answer.label };
-	if (responseType === 'approval') output.approved = answer.value === approveValue;
+	if (responseType === 'approval') output.approved = answer.value === 'approve';
 	return output;
 }
 

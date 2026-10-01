@@ -51,34 +51,36 @@ test('wait limit in seconds', () => {
 	assert.equal(waitSeconds(2, 'minutes'), 120);
 	assert.equal(waitSeconds(1, 'hours'), 3600);
 	assert.equal(waitSeconds(1, 'days'), 86400);
+	assert.equal(waitSeconds(2, 'unknown'), 7200);
 });
 
 test('resume output per response type', () => {
-	const answer = {
+	const base = {
 		question_id: '$q',
+		room_id: '!r:rempart-messenger.fr',
 		message_id: '$m',
 		sender: '@u_x:rempart-messenger.fr',
 		sender_name: 'Bérénice',
-		value: '✅ Approve',
-		label: '✅ Approve',
-		text: '✅ Approve',
 	};
-	assert.deepEqual(resumeOutput('approval', answer, '✅ Approve'), {
-		question_id: '$q',
-		message_id: '$m',
-		sender: '@u_x:rempart-messenger.fr',
-		sender_name: 'Bérénice',
-		value: '✅ Approve',
+	assert.deepEqual(resumeOutput('approval', { ...base, value: 'approve', label: '✅ Approve' }), {
+		...base,
+		value: 'approve',
 		label: '✅ Approve',
 		approved: true,
 	});
-	assert.equal(resumeOutput('approval', { ...answer, value: '❌ Decline' }, '✅ Approve').approved, false);
-	assert.equal(resumeOutput('choices', answer, '').approved, undefined);
-	assert.deepEqual(resumeOutput('freeText', { ...answer, text: 'Thursday' }, ''), {
-		question_id: '$q',
-		message_id: '$m',
-		sender: '@u_x:rempart-messenger.fr',
-		sender_name: 'Bérénice',
+	assert.deepEqual(resumeOutput('approval', { ...base, value: 'decline', label: '❌ Decline' }), {
+		...base,
+		value: 'decline',
+		label: '❌ Decline',
+		approved: false,
+	});
+	assert.deepEqual(resumeOutput('choices', { ...base, value: 'tuesday', label: 'Tuesday' }), {
+		...base,
+		value: 'tuesday',
+		label: 'Tuesday',
+	});
+	assert.deepEqual(resumeOutput('freeText', { ...base, text: 'Thursday' }), {
+		...base,
 		text: 'Thursday',
 	});
 });

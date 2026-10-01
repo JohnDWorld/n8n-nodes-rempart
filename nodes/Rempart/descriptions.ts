@@ -2,7 +2,9 @@ import type { INodeProperties, IWebhookDescription } from 'n8n-workflow';
 
 // Not a trigger: nothing is registered on a remote service. The gateway POSTs the
 // answer to the signed resume URL sent with each question (same shape as n8n's own
-// Send and Wait nodes).
+// Send and Wait nodes). Must stay a named constant: inlined here, the strict linter's
+// webhook-lifecycle-complete rule (meant for triggers that register/unregister a
+// webhook on a third party) fires.
 export const sendAndWaitWebhooks: IWebhookDescription[] = [
 	{
 		name: 'default',
@@ -291,7 +293,8 @@ export const waitProperties: INodeProperties[] = [
 		name: 'limitWaitTime',
 		type: 'boolean',
 		default: false,
-		description: 'Whether to resume the workflow without an answer after a while. It then outputs timedOut: true.',
+		description:
+			'Whether to resume the workflow without an answer after a while. If no answer arrives in time, the execution resumes and the node outputs its input items unchanged; an answer always carries question_id, so a workflow can tell the two apart.',
 		displayOptions: waitShow,
 	},
 	{

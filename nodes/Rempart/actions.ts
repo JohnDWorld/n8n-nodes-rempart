@@ -77,9 +77,17 @@ export async function runOperation(
 
 function waitButtons(this: IExecuteFunctions, responseType: string): RempartButton[] {
 	if (responseType === 'approval') {
+		const approveLabel = ((this.getNodeParameter('approveLabel', 0) as string) ?? '').trim();
+		const declineLabel = ((this.getNodeParameter('declineLabel', 0) as string) ?? '').trim();
+		if (!approveLabel || !declineLabel) {
+			throw new NodeOperationError(this.getNode(), 'Both the approve and the decline labels are required');
+		}
+		// Fixed values, never the labels: Rempart.webhook reads only responseType (no
+		// input item is available when the resume webhook runs, so approveLabel cannot
+		// be re-read there), and resumeOutput compares against 'approve' directly.
 		return buildButtons([
-			{ label: this.getNodeParameter('approveLabel', 0) as string },
-			{ label: this.getNodeParameter('declineLabel', 0) as string },
+			{ label: approveLabel, value: 'approve' },
+			{ label: declineLabel, value: 'decline' },
 		]);
 	}
 	if (responseType === 'choices') {
@@ -117,7 +125,10 @@ export async function sendAndWait(this: IExecuteFunctions): Promise<INodeExecuti
 	}
 	await rempartRequest.call(this, 'POST', '/v1/sendMessage', body);
 	await this.putExecutionToWait(waitTill);
-	// Output if the wait limit is reached without an answer; an answer replaces it
-	// with what Rempart.webhook returns.
-	return [[{ json: { timedOut: true } }]];
+	// n8n's engine (WorkflowExecute.handleWaitingState) discards whatever this
+	// returns once the execution resumes: on an answer, Rempart.webhook's return
+	// value is used instead; on a timeout, the engine pops this node's run data and
+	// emits its input items unchanged regardless of what is returned here. Returning
+	// them anyway matches n8n's own Send and Wait nodes.
+	return [this.getInputData()];
 }
