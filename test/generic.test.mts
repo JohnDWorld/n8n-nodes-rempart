@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { detailOf, errorMessage, statusOf } from '../nodes/Rempart/GenericFunctions.ts';
+import { detailOf, errorMessage, statusOf } from '../nodes/Rempart/helpers.ts';
 
 test('status is read from the raw error and from a NodeApiError', () => {
 	assert.equal(statusOf({ response: { status: 401 } }), 401);
