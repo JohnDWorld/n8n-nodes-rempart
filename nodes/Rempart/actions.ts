@@ -1,6 +1,6 @@
 import type { IBinaryKeyData, IDataObject, IExecuteFunctions, INodeExecutionData } from 'n8n-workflow';
 import { NodeOperationError } from 'n8n-workflow';
-import { rempartRequest } from './GenericFunctions';
+import { downloadFile, rempartRequest } from './GenericFunctions';
 import { buildButtons, buildMessageBody } from './helpers';
 
 /** Runs one operation for one input item. */
@@ -69,20 +69,7 @@ export async function runOperation(
 		const mxc = this.getNodeParameter('mxc', i) as string;
 		const fileName = (this.getNodeParameter('fileName', i, '') as string) || 'file';
 		const field = this.getNodeParameter('binaryPropertyName', i) as string;
-		const response = (await rempartRequest.call(
-			this,
-			'GET',
-			`/v1/getFile?mxc=${encodeURIComponent(mxc)}`,
-			undefined,
-			{ encoding: 'arraybuffer', json: false, returnFullResponse: true },
-		)) as { body: ArrayBuffer; headers: IDataObject };
-		const binary: IBinaryKeyData = {
-			[field]: await this.helpers.prepareBinaryData(
-				Buffer.from(response.body),
-				fileName,
-				String(response.headers['content-type'] ?? ''),
-			),
-		};
+		const binary: IBinaryKeyData = { [field]: await downloadFile.call(this, mxc, fileName) };
 		return [{ json: { mxc, fileName }, binary, pairedItem: i }];
 	}
 	throw new NodeOperationError(this.getNode(), `Unsupported operation: ${resource}.${operation}`, { itemIndex: i });

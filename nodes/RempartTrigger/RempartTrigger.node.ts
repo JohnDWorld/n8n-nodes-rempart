@@ -8,8 +8,8 @@ import type {
 	ITriggerResponse,
 } from 'n8n-workflow';
 import { NodeConnectionTypes, sleep } from 'n8n-workflow';
-import { rempartRequest } from '../Rempart/GenericFunctions';
-import { filterUpdates, nextOffset, retryDelay, statusOf } from '../Rempart/helpers';
+import { downloadFile, rempartRequest } from '../Rempart/GenericFunctions';
+import { downloadErrorItem, filterUpdates, manualAck, nextOffset, retryDelay, statusOf } from '../Rempart/helpers';
 
 export class RempartTrigger implements INodeType {
 	description: INodeTypeDescription = {
@@ -68,24 +68,20 @@ export class RempartTrigger implements INodeType {
 		let running = true;
 		let offset = 0;
 
+		// A failed download must not lose the message: it is emitted without the
+		// binary data, the error recorded in `download_error`, instead of letting
+		// the whole batch's offset advance past a message nothing ever saw.
 		const toItem = async (update: IDataObject): Promise<INodeExecutionData> => {
 			const media = update.media as IDataObject | undefined;
 			if (!download || !media?.mxc) return { json: update };
-			const response = (await rempartRequest.call(
-				this,
-				'GET',
-				`/v1/getFile?mxc=${encodeURIComponent(String(media.mxc))}`,
-				undefined,
-				{ encoding: 'arraybuffer', json: false, returnFullResponse: true },
-			)) as { body: ArrayBuffer; headers: IDataObject };
-			const binary: IBinaryKeyData = {
-				data: await this.helpers.prepareBinaryData(
-					Buffer.from(response.body),
-					String(media.nom ?? 'file'),
-					String(response.headers['content-type'] ?? ''),
-				),
-			};
-			return { json: update, binary };
+			try {
+				const binary: IBinaryKeyData = {
+					data: await downloadFile.call(this, String(media.mxc), String(media.nom || '')),
+				};
+				return { json: update, binary };
+			} catch (error) {
+				return { json: downloadErrorItem(update, error) };
+			}
 		};
 
 		const getUpdates = async (timeout: number) =>
@@ -94,7 +90,8 @@ export class RempartTrigger implements INodeType {
 				abortSignal: controller.signal,
 			})) as IDataObject).updates as IDataObject[] | undefined;
 
-		// Polls until stopped; with `once`, returns after the first emitted batch.
+		// Polls until stopped; with `once`, returns after the first emitted update. Each
+		// kept update starts its own execution, in order: never a batch in one emit.
 		const poll = async (once: boolean): Promise<void> => {
 			let attempt = 0;
 			while (running) {
@@ -102,15 +99,24 @@ export class RempartTrigger implements INodeType {
 					const updates = (await getUpdates(25)) ?? [];
 					attempt = 0;
 					if (!updates.length) continue;
-					offset = nextOffset(updates, offset);
 					const kept = filterUpdates(updates, wanted);
-					if (!kept.length) continue;
-					this.emit([await Promise.all(kept.map(toItem))]);
+					if (!kept.length) {
+						offset = nextOffset(updates, offset);
+						continue;
+					}
 					if (once) {
-						// Acknowledge now: otherwise the test message would start the
-						// workflow again once it is activated.
+						const ack = manualAck(kept);
+						this.emit([[await toItem(ack.item)]]);
+						// Acknowledge only up to the emitted update: the gateway purges
+						// everything below the offset, so the rest of the batch stays
+						// pending instead of being lost once the workflow activates.
+						offset = ack.offset;
 						await getUpdates(0);
 						return;
+					}
+					offset = nextOffset(updates, offset);
+					for (const update of kept) {
+						this.emit([[await toItem(update)]]);
 					}
 				} catch (error) {
 					if (!running) return;

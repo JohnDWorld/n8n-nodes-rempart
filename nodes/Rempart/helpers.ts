@@ -89,3 +89,22 @@ export function filterUpdates(updates: IDataObject[], wanted: string[]): IDataOb
 export function retryDelay(attempt: number): number {
 	return Math.min(30_000, 1_000 * 2 ** attempt);
 }
+
+/**
+ * In manual mode only the first kept update starts the test run. The gateway purges
+ * everything below the acknowledged offset, so only that update's id is acknowledged:
+ * the rest of the batch stays pending and is delivered on a later poll.
+ */
+export function manualAck(kept: IDataObject[]): { item: IDataObject; offset: number } {
+	const item = kept[0];
+	return { item, offset: Number(item.update_id) + 1 };
+}
+
+/**
+ * The item emitted when downloading a message's attachment fails: the message itself
+ * must not be lost with the rest of its batch, so it goes through without the binary
+ * data, the error recorded instead.
+ */
+export function downloadErrorItem(update: IDataObject, error: unknown): IDataObject {
+	return { ...update, download_error: error instanceof Error ? error.message : String(error) };
+}

@@ -1,4 +1,5 @@
 import type {
+	IBinaryData,
 	IDataObject,
 	IExecuteFunctions,
 	IHttpRequestMethods,
@@ -30,4 +31,24 @@ export async function rempartRequest(
 			httpCode: status ? String(status) : undefined,
 		});
 	}
+}
+
+/** Downloads and decrypts a Rempart media file, ready to attach as binary data. */
+export async function downloadFile(
+	this: IExecuteFunctions | ITriggerFunctions,
+	mxc: string,
+	fileName: string,
+): Promise<IBinaryData> {
+	const response = (await rempartRequest.call(
+		this,
+		'GET',
+		`/v1/getFile?mxc=${encodeURIComponent(mxc)}`,
+		undefined,
+		{ encoding: 'arraybuffer', json: false, returnFullResponse: true },
+	)) as { body: ArrayBuffer; headers: IDataObject };
+	return await this.helpers.prepareBinaryData(
+		Buffer.from(response.body),
+		fileName || 'file',
+		String(response.headers['content-type'] ?? ''),
+	);
 }
