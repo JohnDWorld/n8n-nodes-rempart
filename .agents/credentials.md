@@ -5,9 +5,9 @@ sensitive values. They are encrypted at rest.
 
 ## Credential class anatomy
 Credentials classes have:
-- `name` – machine name (used in nodes' `credentials` array)
-- `displayName` – human-readable label in the UI
-- `properties` – parameters (similar types to node properties)
+- `name` - machine name (used in nodes' `credentials` array)
+- `displayName` - human-readable label in the UI
+- `properties` - parameters (similar types to node properties)
 Sensitive properties should set `typeOptions.password = true`
 
 ## Example

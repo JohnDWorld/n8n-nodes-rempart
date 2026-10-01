@@ -6,11 +6,11 @@ classes and helper functions.
 
 Nodes can be built using one of two styles. To identify which style an
 existing node uses:
-- **Declarative-style** — no `execute` method. Instead, the node has
+- **Declarative-style** - no `execute` method. Instead, the node has
   `requestDefaults` and parameters use `routing` (with `routing.request`,
   `routing.send.preSend`, `routing.output.postReceive`, etc.) to
   describe HTTP calls. See `.agents/nodes-declarative.md`
-- **Programmatic-style** — has an `async execute(this: IExecuteFunctions)`
+- **Programmatic-style** - has an `async execute(this: IExecuteFunctions)`
   method that manually calls APIs (via `this.helpers.httpRequest` /
   `httpRequestWithAuthentication`), loops over items, and builds the
   return array. See `.agents/nodes-programmatic.md`
