@@ -125,8 +125,9 @@ export class RempartTrigger implements INodeType {
 					for (const update of kept) {
 						// Stopped mid-batch: what was not emitted is not acknowledged either,
 						// so it comes back on the next activation.
+						const item = await toItem(update);
 						if (!running) return;
-						this.emit([[await toItem(update)]]);
+						this.emit([[item]]);
 					}
 				} catch (error) {
 					if (!running) return;
