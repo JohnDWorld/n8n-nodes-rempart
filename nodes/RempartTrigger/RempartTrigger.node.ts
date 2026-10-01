@@ -7,7 +7,7 @@ import type {
 	ITriggerFunctions,
 	ITriggerResponse,
 } from 'n8n-workflow';
-import { NodeConnectionTypes, sleep } from 'n8n-workflow';
+import { NodeConnectionTypes, NodeOperationError, sleep } from 'n8n-workflow';
 import { downloadFile, rempartRequest } from '../Rempart/GenericFunctions';
 import { downloadErrorItem, filterUpdates, manualAck, nextOffset, retryDelay, statusOf } from '../Rempart/helpers';
 
@@ -63,6 +63,10 @@ export class RempartTrigger implements INodeType {
 
 	async trigger(this: ITriggerFunctions): Promise<ITriggerResponse> {
 		const wanted = this.getNodeParameter('updates', ['message', 'reaction']) as string[];
+		// Nothing selected would acknowledge, and so drop, every update the bot receives.
+		if (!wanted.length) {
+			throw new NodeOperationError(this.getNode(), 'Select at least one update type in Trigger On');
+		}
 		const download = this.getNodeParameter('options.downloadAttachments', false) as boolean;
 		const controller = new AbortController();
 		let running = true;
@@ -111,11 +115,17 @@ export class RempartTrigger implements INodeType {
 						// everything below the offset, so the rest of the batch stays
 						// pending instead of being lost once the workflow activates.
 						offset = ack.offset;
+						// Stop first: a failed acknowledgement must not keep the test polling,
+						// it would start on, and consume, the next message.
+						running = false;
 						await getUpdates(0);
 						return;
 					}
 					offset = nextOffset(updates, offset);
 					for (const update of kept) {
+						// Stopped mid-batch: what was not emitted is not acknowledged either,
+						// so it comes back on the next activation.
+						if (!running) return;
 						this.emit([[await toItem(update)]]);
 					}
 				} catch (error) {

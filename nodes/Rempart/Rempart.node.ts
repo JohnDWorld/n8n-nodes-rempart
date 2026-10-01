@@ -54,7 +54,8 @@ export class Rempart implements INodeType {
 
 	async webhook(this: IWebhookFunctions): Promise<IWebhookResponseData> {
 		// Only responseType is read: there is no input item when the resume webhook
-		// runs, so an expression on $json (as approveLabel's default is) cannot resolve.
+		// runs, so a label the user set as an expression on $json could not be
+		// evaluated here. Approval buttons carry fixed values instead (see waitButtons).
 		const responseType = this.getNodeParameter('responseType', 'approval') as string;
 		const answer = this.getBodyData() as IDataObject;
 		return { workflowData: [[{ json: resumeOutput(responseType, answer) }]] };

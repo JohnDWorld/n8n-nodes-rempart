@@ -1,15 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <!-- Rempart Logo - App Icon -->
-  
-  <!-- Fond arrondi bleu marine -->
   <rect width="512" height="512" rx="90" ry="90" fill="#1e3048"/>
-  
-  <!-- Hexagone en arriere-plan.
-       PAS d'attribut `opacity` : la couleur porte deja la discretion voulue.
-       L'opacite est rendue differemment d'un moteur a l'autre (ImageMagick
-       l'ignore purement et simplement), donc l'icone n'avait pas la meme
-       presence selon l'outil qui la rendait, et les apercus mentaient. Une
-       couleur composee une fois pour toutes ne se discute pas. -->
   <path fill="none" stroke="#3a5068" stroke-width="22" stroke-linejoin="round" stroke-linecap="round"
         d="M 256 55 
            Q 266 55 276 61
@@ -27,12 +17,6 @@
            L 236 61
            Q 246 55 256 55
            Z"/>
-  
-  <!-- Letter R doré -->
-  <!-- Les encoches sont des TROUS dans le trace du R (fill-rule="evenodd"),
-       et non des rectangles peints de la couleur du fond. Peintes, elles
-       reapparaissaient en aplat des que le fond changeait : sur un PNG
-       transparent, sur un theme sombre, sur un degrade. -->
   <path fill="#d4a438" fill-rule="evenodd"  d="
     M 185 145
     L 185 176
@@ -68,6 +52,4 @@
     L 227 185
     Z
   "/>
-  
-  
 </svg>

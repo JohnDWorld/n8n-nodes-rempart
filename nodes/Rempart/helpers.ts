@@ -78,10 +78,14 @@ export function statusOf(error: unknown): number | undefined {
 	return Number.isFinite(code) ? code : undefined;
 }
 
-/** The gateway answers errors in plain text: that text is the most useful detail. */
+/**
+ * The gateway answers errors in plain text: that text is the most useful detail. getFile
+ * is read as an arraybuffer, so its error body arrives as a Buffer.
+ */
 export function detailOf(error: unknown): string {
 	const e = error as { response?: { data?: unknown }; description?: string; message?: string };
-	const data = e?.response?.data;
+	const raw = e?.response?.data;
+	const data = Buffer.isBuffer(raw) ? raw.toString('utf8') : raw;
 	if (typeof data === 'string' && data) return data;
 	return e?.description ?? e?.message ?? '';
 }
@@ -103,6 +107,20 @@ export function errorMessage(status: number | undefined, detail: string): string
 	}
 	if (status !== undefined) return `Rempart gateway error (HTTP ${status}): ${detail}`;
 	return detail || 'Rempart gateway error';
+}
+
+/**
+ * What rempartRequest rethrows as a NodeApiError: cause, message and HTTP code.
+ * httpRequestWithAuthentication already throws NodeApiError(node, axiosError), and
+ * wrapping a NodeApiError again hands back the original with the new message ignored:
+ * so the axios error is unwrapped first (`cause` when it is an Error, `errorResponse`
+ * otherwise), and the gateway's text read from its response.
+ */
+export function gatewayError(error: unknown): { cause: unknown; message: string; httpCode?: string } {
+	const e = error as { cause?: unknown; errorResponse?: unknown };
+	const cause = e?.cause ?? e?.errorResponse ?? error;
+	const status = statusOf(cause) ?? statusOf(error);
+	return { cause, message: errorMessage(status, detailOf(cause)), httpCode: status ? String(status) : undefined };
 }
 
 /** Offset for the next getUpdates: last update_id plus one. The gateway drops everything below. */

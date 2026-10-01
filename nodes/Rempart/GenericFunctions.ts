@@ -8,7 +8,7 @@ import type {
 	JsonObject,
 } from 'n8n-workflow';
 import { NodeApiError } from 'n8n-workflow';
-import { DEFAULT_GATEWAY_URL, detailOf, errorMessage, statusOf } from './helpers';
+import { DEFAULT_GATEWAY_URL, gatewayError } from './helpers';
 
 /** Calls the Rempart bot gateway with the bot token of the credential. */
 export async function rempartRequest(
@@ -17,6 +17,7 @@ export async function rempartRequest(
 	path: string,
 	body?: IDataObject,
 	extra: Partial<IHttpRequestOptions> = {},
+	itemIndex?: number,
 ): Promise<unknown> {
 	const credentials = await this.getCredentials('rempartApi');
 	const base = String(credentials.gatewayUrl || DEFAULT_GATEWAY_URL).replace(/\/+$/, '');
@@ -25,11 +26,8 @@ export async function rempartRequest(
 	try {
 		return await this.helpers.httpRequestWithAuthentication.call(this, 'rempartApi', options);
 	} catch (error) {
-		const status = statusOf(error);
-		throw new NodeApiError(this.getNode(), error as JsonObject, {
-			message: errorMessage(status, detailOf(error)),
-			httpCode: status ? String(status) : undefined,
-		});
+		const { cause, message, httpCode } = gatewayError(error);
+		throw new NodeApiError(this.getNode(), cause as JsonObject, { message, httpCode, itemIndex });
 	}
 }
 
@@ -38,6 +36,7 @@ export async function downloadFile(
 	this: IExecuteFunctions | ITriggerFunctions,
 	mxc: string,
 	fileName: string,
+	itemIndex?: number,
 ): Promise<IBinaryData> {
 	const response = (await rempartRequest.call(
 		this,
@@ -45,6 +44,7 @@ export async function downloadFile(
 		`/v1/getFile?mxc=${encodeURIComponent(mxc)}`,
 		undefined,
 		{ encoding: 'arraybuffer', json: false, returnFullResponse: true },
+		itemIndex,
 	)) as { body: ArrayBuffer; headers: IDataObject };
 	return await this.helpers.prepareBinaryData(
 		Buffer.from(response.body),

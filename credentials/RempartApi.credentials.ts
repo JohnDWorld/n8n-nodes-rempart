@@ -12,7 +12,7 @@ export class RempartApi implements ICredentialType {
 
 	icon = 'file:rempart.svg' as const;
 
-	documentationUrl = 'https://rempart-messenger.fr/api-bots.md';
+	documentationUrl = 'https://github.com/JohnDWorld/n8n-nodes-rempart#credentials';
 
 	properties: INodeProperties[] = [
 		{

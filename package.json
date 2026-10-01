@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-rempart",
-  "version": "0.1.0",
+  "version": "0.0.0",
   "description": "Rempart Messenger nodes for n8n: receive messages, reply, send files and wait for a human answer",
   "license": "MIT",
   "homepage": "https://rempart-messenger.fr",
@@ -31,7 +31,8 @@
     "test": "node --test \"test/**/*.test.mts\""
   },
   "files": [
-    "dist"
+    "dist",
+    "!dist/tsconfig.tsbuildinfo"
   ],
   "n8n": {
     "n8nNodesApiVersion": 1,

@@ -11,10 +11,10 @@ export async function runOperation(
 	i: number,
 ): Promise<INodeExecutionData[]> {
 	if (resource === 'bot' && operation === 'getInfo') {
-		return [{ json: (await rempartRequest.call(this, 'GET', '/v1/getMe')) as IDataObject, pairedItem: i }];
+		return [{ json: (await rempartRequest.call(this, 'GET', '/v1/getMe', undefined, {}, i)) as IDataObject, pairedItem: i }];
 	}
 	const call = async (path: string, body: IDataObject) => [
-		{ json: (await rempartRequest.call(this, 'POST', path, body)) as IDataObject, pairedItem: i },
+		{ json: (await rempartRequest.call(this, 'POST', path, body, {}, i)) as IDataObject, pairedItem: i },
 	];
 	if (resource === 'chat' && operation === 'sendTyping') {
 		return await call('/v1/sendChatAction', { room_id: this.getNodeParameter('roomId', i), action: 'typing' });
@@ -69,7 +69,7 @@ export async function runOperation(
 		const mxc = this.getNodeParameter('mxc', i) as string;
 		const fileName = (this.getNodeParameter('fileName', i, '') as string) || 'file';
 		const field = this.getNodeParameter('binaryPropertyName', i) as string;
-		const binary: IBinaryKeyData = { [field]: await downloadFile.call(this, mxc, fileName) };
+		const binary: IBinaryKeyData = { [field]: await downloadFile.call(this, mxc, fileName, i) };
 		return [{ json: { mxc, fileName }, binary, pairedItem: i }];
 	}
 	throw new NodeOperationError(this.getNode(), `Unsupported operation: ${resource}.${operation}`, { itemIndex: i });
@@ -123,7 +123,7 @@ export async function sendAndWait(this: IExecuteFunctions): Promise<INodeExecuti
 		waitTill = new Date(Date.now() + seconds * 1000);
 		body.reply_expires_at = Math.floor(waitTill.getTime() / 1000);
 	}
-	await rempartRequest.call(this, 'POST', '/v1/sendMessage', body);
+	await rempartRequest.call(this, 'POST', '/v1/sendMessage', body, {}, 0);
 	await this.putExecutionToWait(waitTill);
 	// n8n's engine (WorkflowExecute.handleWaitingState) discards whatever this
 	// returns once the execution resumes: on an answer, Rempart.webhook's return
